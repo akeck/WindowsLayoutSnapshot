@@ -13,9 +13,11 @@ using System.Resources;
 using System.Linq;
 using System.Threading;
 
-namespace WindowsLayoutSnapshot {
+namespace WindowsLayoutSnapshot
+{
 
-    public partial class TrayIconForm : Form {
+    public partial class TrayIconForm : Form
+    {
 
         private System.Windows.Forms.Timer m_snapshotTimer = new System.Windows.Forms.Timer();
         private List<Snapshot> m_snapshots = new List<Snapshot>();
@@ -28,7 +30,7 @@ namespace WindowsLayoutSnapshot {
 
         private static ResourceManager _rm;
 
-        static void LangHelper(string lang) => _rm = lang.Contains("fr") ? new ResourceManager("WindowsLayoutSnapshot.Language.fr", Assembly.GetExecutingAssembly()) : new ResourceManager("WindowsLayoutSnapshot.Language.en", Assembly.GetExecutingAssembly());
+        static void LangHelper(string lang) => _rm = new ResourceManager("WindowsLayoutSnapshot.Language.en", Assembly.GetExecutingAssembly());
 
 	    public static string getTrad(string name) => _rm.GetString(name);
 
@@ -118,9 +120,9 @@ namespace WindowsLayoutSnapshot {
         //    SnapshotMousedOver(sender, e);
         //}
 
-        private class RightImageToolStripMenuItem : ToolStripMenuItem {
-            public RightImageToolStripMenuItem(string text)
-                : base(text)
+        private class RightImageToolStripMenuItem : ToolStripMenuItem
+        {
+            public RightImageToolStripMenuItem(string text) : base(text)
             {
             }
             public float[] MonitorSizes { get; set; }
@@ -247,9 +249,9 @@ namespace WindowsLayoutSnapshot {
             try
             {
                 FieldInfo arrowPaddingField = typeof(ToolStripDropDownMenu).GetField("ArrowPadding", BindingFlags.NonPublic | BindingFlags.Static);
-                if (!m_originalTrayMenuArrowPadding.HasValue) {
+                if (!m_originalTrayMenuArrowPadding.HasValue)
                     m_originalTrayMenuArrowPadding = (Padding)arrowPaddingField.GetValue(trayMenu);
-                }
+\
                 arrowPaddingField.SetValue(trayMenu, new Padding(m_originalTrayMenuArrowPadding.Value.Left, m_originalTrayMenuArrowPadding.Value.Top,
                     m_originalTrayMenuArrowPadding.Value.Right + (showMonitorIcons ? 50 + 22 * maxNumMonitors : 0), 
                     m_originalTrayMenuArrowPadding.Value.Bottom));
