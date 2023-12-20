@@ -251,7 +251,7 @@ namespace WindowsLayoutSnapshot
                 FieldInfo arrowPaddingField = typeof(ToolStripDropDownMenu).GetField("ArrowPadding", BindingFlags.NonPublic | BindingFlags.Static);
                 if (!m_originalTrayMenuArrowPadding.HasValue)
                     m_originalTrayMenuArrowPadding = (Padding)arrowPaddingField.GetValue(trayMenu);
-\
+
                 arrowPaddingField.SetValue(trayMenu, new Padding(m_originalTrayMenuArrowPadding.Value.Left, m_originalTrayMenuArrowPadding.Value.Top,
                     m_originalTrayMenuArrowPadding.Value.Right + (showMonitorIcons ? 50 + 22 * maxNumMonitors : 0), 
                     m_originalTrayMenuArrowPadding.Value.Bottom));
