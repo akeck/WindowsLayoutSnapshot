@@ -42,17 +42,13 @@ namespace WindowsLayoutSnapshot {
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
         private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
 
-        internal static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex) {
-            if (IntPtr.Size == 8) {
-                return GetWindowLongPtr64(hWnd, nIndex);
-            }
-            return GetWindowLongPtr32(hWnd, nIndex);
-        }
+        internal static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex) => IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : GetWindowLongPtr32(hWnd, nIndex);
 
-        [DllImport("user32.dll")]
+	    [DllImport("user32.dll")]
         internal static extern IntPtr GetLastActivePopup(IntPtr hWnd);
 
-        internal enum GetAncestor_Flags {
+        internal enum GetAncestor_Flags
+        {
             GetParent = 1,
             GetRoot = 2,
             GetRootOwner = 3
@@ -66,14 +62,13 @@ namespace WindowsLayoutSnapshot {
         internal static extern bool IsWindowVisible(IntPtr hWnd);
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct RECT {
+        internal struct RECT
+        {
             public int Left;
             public int Top;
             public int Right;
             public int Bottom;
-            public Rectangle ToRectangle() {
-                return Rectangle.FromLTRB(Left, Top, Right, Bottom);
-            }
+            public Rectangle ToRectangle() => Rectangle.FromLTRB(Left, Top, Right, Bottom);
         }
 
         [DllImport("user32.dll")]
@@ -105,7 +100,8 @@ namespace WindowsLayoutSnapshot {
         internal static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct MONITORINFO {
+        private struct MONITORINFO
+        {
             public int cbSize;
             public RECT rcMonitor;
             public RECT rcWork;
@@ -120,8 +116,8 @@ namespace WindowsLayoutSnapshot {
 
         public static string GetWindowTitle(IntPtr hWnd)
         {
-            var length = GetWindowTextLength(hWnd) + 1;
-            var title = new StringBuilder(length);
+            int length = GetWindowTextLength(hWnd) + 1;
+            StringBuilder title = new StringBuilder(length);
             GetWindowText(hWnd, title, length);
             return title.ToString();
         }
@@ -130,22 +126,26 @@ namespace WindowsLayoutSnapshot {
         public static extern int GetWindowThreadProcessId(IntPtr handle, out uint processId);
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct POINT {
+        public struct POINT
+        {
             public int X;
             public int Y;
 
-            public POINT(int x, int y) {
-                this.X = x;
-                this.Y = y;
+            public POINT(int x, int y)
+            {
+                X = x;
+                Y = y;
             }
 
-            public POINT(System.Drawing.Point pt) : this(pt.X, pt.Y) { }
+            public POINT(Point pt) : this(pt.X, pt.Y) { }
 
-            public static implicit operator System.Drawing.Point(POINT p) {
-                return new System.Drawing.Point(p.X, p.Y);
+            public static implicit operator Point(POINT p)
+            {
+                return new Point(p.X, p.Y);
             }
 
-            public static implicit operator POINT(System.Drawing.Point p) {
+            public static implicit operator POINT(Point p) 
+            {
                 return new POINT(p.X, p.Y);
             }
         }
@@ -159,6 +159,5 @@ namespace WindowsLayoutSnapshot {
             MONITOR_DEFAULTTOPRIMARY = 0x00000001,
             MONITOR_DEFAULTTONEAREST = 0x00000002
         }
-
     }
 }

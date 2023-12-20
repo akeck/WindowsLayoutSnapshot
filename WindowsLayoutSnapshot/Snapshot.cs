@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Diagnostics;
+using System.Linq;
 using static WindowsLayoutSnapshot.Native;
 using Newtonsoft.Json;
 
@@ -15,7 +16,8 @@ namespace WindowsLayoutSnapshot
         private Dictionary<int, WinInfo> m_infos = new Dictionary<int, WinInfo>();
         private List<IntPtr> m_windowsBackToTop = new List<IntPtr>();
 
-        private Snapshot(bool userInitiated) {
+        private Snapshot(bool userInitiated)
+        {
 #if DEBUG
             Debug.WriteLine("*** NEW SNAPSHOT ***");
 #endif
@@ -24,10 +26,8 @@ namespace WindowsLayoutSnapshot
             TimeTaken = DateTime.UtcNow;
             UserInitiated = userInitiated;
 
-            var pixels = new List<long>();
-            foreach (var screen in Screen.AllScreens)
-                pixels.Add(screen.Bounds.Width * screen.Bounds.Height);
-            MonitorPixelCounts = pixels.ToArray();
+            List<long> pixels = Screen.AllScreens.Select(screen => screen.Bounds.Width * screen.Bounds.Height).Select(dummy => (long)dummy).ToList();
+	        MonitorPixelCounts = pixels.ToArray();
             NumMonitors = pixels.Count;
         }
 
@@ -44,8 +44,8 @@ namespace WindowsLayoutSnapshot
             TimeTaken = DateTime.UtcNow;
             UserInitiated = userInitiated;
 
-            var pixels = new List<long>();
-            foreach (var screen in Screen.AllScreens)
+            List<long> pixels = new List<long>();
+            foreach (Screen screen in Screen.AllScreens)
                 pixels.Add(screen.Bounds.Width * screen.Bounds.Height);
             MonitorPixelCounts = pixels.ToArray();
             NumMonitors = pixels.Count;
@@ -62,37 +62,28 @@ namespace WindowsLayoutSnapshot
             //EnumWindows(EvalWindow, 0);
 
             //m_infos = processList;
-            foreach (var item in processList)
-            {
+            foreach (KeyValuePair<int, WinInfo> item in processList)
                 m_infos.Add(item.Key, item.Value);
-            }
 
             TimeTaken = DateTime.UtcNow;
             UserInitiated = userInitiated;
 
-            var pixels = new List<long>();
-            foreach (var screen in Screen.AllScreens)
+            List<long> pixels = new List<long>();
+            foreach (Screen screen in Screen.AllScreens)
                 pixels.Add(screen.Bounds.Width * screen.Bounds.Height);
             MonitorPixelCounts = pixels.ToArray();
             NumMonitors = pixels.Count;
         }
 
-        internal static Snapshot TakeSnapshot(bool userInitiated) {
-            return new Snapshot(userInitiated);
-        }
+        internal static Snapshot TakeSnapshot(bool userInitiated) => new Snapshot(userInitiated);
 
-        internal static Snapshot TakeSnapshot(bool userInitiated, string snapshotName)
-        {
-            return new Snapshot(userInitiated, snapshotName);
-        }
+	    internal static Snapshot TakeSnapshot(bool userInitiated, string snapshotName) => new Snapshot(userInitiated, snapshotName);
 
-        internal static Snapshot TakeSnapshot(bool userInitiated, string snapshotName, Dictionary<int, WinInfo>  processList)
-        {
-            return new Snapshot(userInitiated, snapshotName, processList);
-        }
+	    internal static Snapshot TakeSnapshot(bool userInitiated, string snapshotName, Dictionary<int, WinInfo>  processList) => new Snapshot(userInitiated, snapshotName, processList);
 
-        private bool EvalWindow(int hwndInt, int lParam) {
-            var hwnd = new IntPtr(hwndInt);
+	    private bool EvalWindow(int hwndInt, int lParam)
+	    {
+            IntPtr hwnd = new IntPtr(hwndInt);
 
             if (!IsAltTabWindow(hwnd))
                 return true;
@@ -110,7 +101,6 @@ namespace WindowsLayoutSnapshot
             int a = GetWindowText(hwnd, outText, outText.Capacity);
             Debug.WriteLine(hwnd + " " + win.position + " " + outText);
 #endif
-
             return true;
         }
 
@@ -120,25 +110,28 @@ namespace WindowsLayoutSnapshot
         internal long[] MonitorPixelCounts { get; private set; }
         internal int NumMonitors { get; private set; }
 
-        public string GetDisplayString() {
+        public string GetDisplayString()
+        {
             DateTime dt = TimeTaken.ToLocalTime();
             return snapshotName != null ? snapshotName : dt.ToString("M") + ", " + dt.ToString("T");
         }
 
-        internal TimeSpan Age {
-            get { return DateTime.UtcNow.Subtract(TimeTaken); }
-        }
+        internal TimeSpan Age => DateTime.UtcNow.Subtract(TimeTaken);
 
-        internal void RestoreAndPreserveMenu(object sender, EventArgs e) { // ignore extra params
+	    internal void RestoreAndPreserveMenu(object sender, EventArgs e)
+	    {   // ignore extra params
             // We save and restore the current foreground window because it's our tray menu
             // I couldn't find a way to get this handle straight from the tray menu's properties;
             //   the ContextMenuStrip.Handle isn't the right one, so I'm using win32
             // More info RE the restore is below, where we do it
-            var currentForegroundWindow = GetForegroundWindow();
+            IntPtr currentForegroundWindow = GetForegroundWindow();
 
-            try {
+            try
+            {
                 Restore(sender, e);
-            } finally {
+            }
+            finally
+            {
                 // A combination of SetForegroundWindow + SetWindowPos (via set_Visible) seems to be needed
                 // This was determined by trying a bunch of stuff
                 // This prevents the tray menu from closing, and makes sure it's still on top
@@ -147,12 +140,13 @@ namespace WindowsLayoutSnapshot
             }
         }
 
-        internal void Restore(object sender, EventArgs e) { // ignore extra params
-                                                            // first, restore the window rectangles and normal/maximized/minimized states
-            foreach (var placement in m_infos) {
-
-                var processId = placement.Key;
-                var processPath = placement.Value.processPath;
+        internal void Restore(object sender, EventArgs e)
+        {   // ignore extra params
+            // first, restore the window rectangles and normal/maximized/minimized states
+            foreach (KeyValuePair<int, WinInfo> placement in m_infos)
+            {
+                int processId = placement.Key;
+                string processPath = placement.Value.processPath;
 
                 // If PID is not existing try to start process
                 try
@@ -166,10 +160,10 @@ namespace WindowsLayoutSnapshot
                 {
                     try
                     {
-                        var processFound = false;
+                        bool processFound = false;
 
                         // Check if process path is already started
-                        foreach (var item in Process.GetProcesses())
+                        foreach (Process item in Process.GetProcesses())
                         {
                            try
                             {
@@ -179,7 +173,7 @@ namespace WindowsLayoutSnapshot
                                     int count = 0;
                                     while (count < 6)
                                     {
-                                        var process = item;
+                                        Process process = item;
                                         process.Refresh();
                                         processId = (int)process.MainWindowHandle.ToInt64();
                                         if(processId == 0)
@@ -187,16 +181,15 @@ namespace WindowsLayoutSnapshot
                                             System.Threading.Thread.Sleep(250);
                                             Debug.WriteLine("Count =" + count);
                                             count++;
-                                        }else
+                                        }
+                                        else
                                         {
                                             processFound = true;
                                             count = 6;
                                         }
                                     }
                                     if (processFound)
-                                    {
                                         break;
-                                    }
                                 }
                             }
                             catch
@@ -209,7 +202,7 @@ namespace WindowsLayoutSnapshot
                         {
                             Debug.WriteLine("New process");
                             // Start process because app can't be started
-                            var process = Process.Start(processPath);
+                            Process process = Process.Start(processPath);
                             int count = 0;
                             while (count < 12)
                             {
@@ -244,12 +237,11 @@ namespace WindowsLayoutSnapshot
                 {
                     if (!SetWindowPos((IntPtr)processId, 0, newpos.Left, newpos.Top, newpos.Width, newpos.Height, 0x0004 /*NOZORDER*/))
                     {
-                        var err = GetLastError();
+                        uint err = GetLastError();
                         Debug.WriteLine("Can't move window " + placement.Key + ": Error" + GetLastError());
-                    }else
-                    {
-                        Debug.WriteLine(processId);
                     }
+                    else
+                        Debug.WriteLine(processId);
                 }
                 catch(Exception errrr)
                 {
@@ -262,14 +254,14 @@ namespace WindowsLayoutSnapshot
             // now update the z-orders
             m_windowsBackToTop = m_windowsBackToTop.FindAll(IsWindowVisible);
             IntPtr positionStructure = BeginDeferWindowPos(m_windowsBackToTop.Count);
-            for (int i = 0; i < m_windowsBackToTop.Count; i++) {
+            for (int i = 0; i < m_windowsBackToTop.Count; i++)
                 positionStructure = DeferWindowPos(positionStructure, m_windowsBackToTop[i], i == 0 ? IntPtr.Zero : m_windowsBackToTop[i - 1],
                     0, 0, 0, 0, DeferWindowPosCommands.SWP_NOMOVE | DeferWindowPosCommands.SWP_NOSIZE | DeferWindowPosCommands.SWP_NOACTIVATE);
-            }
             EndDeferWindowPos(positionStructure);
         }
 
-        private static Rectangle GetRectInsideNearestMonitor(WinInfo win) {
+        private static Rectangle GetRectInsideNearestMonitor(WinInfo win)
+        {
             Rectangle real = win.position;
             Rectangle rect = win.visible;
             Rectangle monitorRect = Screen.GetWorkingArea(rect); // use workspace coordinates
@@ -293,7 +285,8 @@ namespace WindowsLayoutSnapshot
             return y;
         }
 
-        private static bool IsAltTabWindow(IntPtr hwnd) {
+        private static bool IsAltTabWindow(IntPtr hwnd)
+        {
             if (!IsWindowVisible(hwnd))
                 return false;
 
@@ -305,19 +298,18 @@ namespace WindowsLayoutSnapshot
 
             IntPtr hwndTry = GetAncestor(hwnd, GetAncestor_Flags.GetRootOwner);
             IntPtr hwndWalk = IntPtr.Zero;
-            while (hwndTry != hwndWalk) {
+            while (hwndTry != hwndWalk)
+            {
                 hwndWalk = hwndTry;
                 hwndTry = GetLastActivePopup(hwndWalk);
                 if (IsWindowVisible(hwndTry))
                     break;
             }
-            if (hwndWalk != hwnd)
-                return false;
-
-            return true;
+            return hwndWalk == hwnd;
         }
 
-        public class WinInfo {
+        public class WinInfo
+        {
             public Rectangle position; // real window border, we use this to move it
             public Rectangle visible; // visible window borders, we use this to force inside a screen
             public string title;
@@ -336,14 +328,15 @@ namespace WindowsLayoutSnapshot
             public Dictionary<int, WinInfo> processList;
         }
 
-        private static WinInfo GetWindowInfo(IntPtr hwnd) {
+        private static WinInfo GetWindowInfo(IntPtr hwnd)
+        {
             WinInfo win = new WinInfo();
             RECT pos;
             if (!GetWindowRect(hwnd, out pos))
                 throw new Exception("Error getting window rectangle");
             win.position = win.visible = pos.ToRectangle();
             if (Environment.OSVersion.Version.Major >= 6)
-                if (DwmGetWindowAttribute(hwnd, 9 /*DwmwaExtendedFrameBounds*/, out pos, Marshal.SizeOf(typeof(Native.RECT))) == 0)
+                if (DwmGetWindowAttribute(hwnd, 9 /*DwmwaExtendedFrameBounds*/, out pos, Marshal.SizeOf(typeof(RECT))) == 0)
                     win.visible = pos.ToRectangle();
 
             // Get process title
@@ -370,11 +363,11 @@ namespace WindowsLayoutSnapshot
 
         public string getJSON() 
         {
-            string jsonString = JsonConvert.SerializeObject(this.m_infos);
+            string jsonString = JsonConvert.SerializeObject(m_infos);
 
             SnapshotJSON snapshotJSON = new SnapshotJSON();
-            snapshotJSON.name = this.GetDisplayString();
-            snapshotJSON.processList = this.m_infos;
+            snapshotJSON.name = GetDisplayString();
+            snapshotJSON.processList = m_infos;
 
             return JsonConvert.SerializeObject(snapshotJSON);
         }

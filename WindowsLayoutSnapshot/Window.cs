@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace WindowsLayoutSnapshot {
 
@@ -12,74 +10,67 @@ namespace WindowsLayoutSnapshot {
     // License: CPOL (liberal)
     // Modifications: cleanup
 
-    public class Window {
+    public class Window
+    {
+	    private bool m_Visible = true;
+	    private bool m_WasMax = false;
 
-        private IntPtr m_hWnd;
-        private string m_Title;
-        private bool m_Visible = true;
-        private string m_Process;
-        private bool m_WasMax = false;
-
-        public Window(string Title, IntPtr hWnd, string Process) {
-            m_Title = Title;
-            m_hWnd = hWnd;
-            m_Process = Process;
+        public Window(string Title, IntPtr hWnd, string Process)
+        {
+            this.Title = Title;
+            this.hWnd = hWnd;
+            this.Process = Process;
         }
 
-        public IntPtr hWnd {
-            get { return m_hWnd; }
-        }
+        public IntPtr hWnd { get; }
 
-        public string Title {
-            get { return m_Title; }
-        }
+	    public string Title { get; }
 
-        public string Process {
-            get { return m_Process; }
-        }
+	    public string Process { get; }
 
-        public bool Visible {
+	    public bool Visible {
             get { return m_Visible; }
             set {
                 //show the window
-                if (value) {
-                    if (m_WasMax) {
-                        if (ShowWindowAsync(m_hWnd, SW_SHOWMAXIMIZED))
-                            m_Visible = true;
-                    } else {
-                        if (ShowWindowAsync(m_hWnd, SW_SHOWNORMAL))
+                if (value)
+                {
+                    if (m_WasMax)
+                    {
+                        if (ShowWindowAsync(hWnd, SW_SHOWMAXIMIZED))
                             m_Visible = true;
                     }
-                } else {
-                    m_WasMax = IsZoomed(m_hWnd);
-                    if (ShowWindowAsync(m_hWnd, SW_HIDE))
+                    else
+                    {
+                        if (ShowWindowAsync(hWnd, SW_SHOWNORMAL))
+                            m_Visible = true;
+                    }
+                }
+                else
+                {
+                    m_WasMax = IsZoomed(hWnd);
+                    if (ShowWindowAsync(hWnd, SW_HIDE))
                         m_Visible = false;
                 }
             }
         }
 
         public void Activate() {
-            if (m_hWnd == GetForegroundWindow()) {
+            if (hWnd == GetForegroundWindow())
                 return;
-            }
 
-            IntPtr ThreadID1 = GetWindowThreadProcessId(GetForegroundWindow(),
-                                                        IntPtr.Zero);
-            IntPtr ThreadID2 = GetWindowThreadProcessId(m_hWnd, IntPtr.Zero);
+            IntPtr ThreadID1 = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+            IntPtr ThreadID2 = GetWindowThreadProcessId(hWnd, IntPtr.Zero);
 
-            if (ThreadID1 != ThreadID2) {
+            if (ThreadID1 != ThreadID2)
+            {
                 AttachThreadInput(ThreadID1, ThreadID2, 1);
-                SetForegroundWindow(m_hWnd);
+                SetForegroundWindow(hWnd);
                 AttachThreadInput(ThreadID1, ThreadID2, 0);
-            } else {
-                SetForegroundWindow(m_hWnd);
             }
+            else
+                SetForegroundWindow(hWnd);
 
-            if (IsIconic(m_hWnd)) {
-                ShowWindowAsync(m_hWnd, SW_RESTORE);
-            } else {
-                ShowWindowAsync(m_hWnd, SW_SHOWNORMAL);
-            }
+	        ShowWindowAsync(hWnd, IsIconic(hWnd) ? SW_RESTORE : SW_SHOWNORMAL);
         }
 
         [DllImport("user32.dll")]

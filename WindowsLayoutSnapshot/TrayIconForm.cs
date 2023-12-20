@@ -1,7 +1,6 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -11,7 +10,7 @@ using System.Windows.Forms;
 using static WindowsLayoutSnapshot.Native;
 using static WindowsLayoutSnapshot.Snapshot;
 using System.Resources;
-using System.Globalization;
+using System.Linq;
 using System.Threading;
 
 namespace WindowsLayoutSnapshot {
@@ -29,24 +28,13 @@ namespace WindowsLayoutSnapshot {
 
         private static ResourceManager _rm;
 
-        static void LangHelper(string lang)
+        static void LangHelper(string lang) => _rm = lang.Contains("fr") ? new ResourceManager("WindowsLayoutSnapshot.Language.fr", Assembly.GetExecutingAssembly()) : new ResourceManager("WindowsLayoutSnapshot.Language.en", Assembly.GetExecutingAssembly());
+
+	    public static string getTrad(string name) => _rm.GetString(name);
+
+
+	    public TrayIconForm()
         {
-            if (lang.Contains("fr"))
-            {
-                _rm = new ResourceManager("WindowsLayoutSnapshot.Language.fr", Assembly.GetExecutingAssembly());
-            }else
-            {
-                _rm = new ResourceManager("WindowsLayoutSnapshot.Language.en", Assembly.GetExecutingAssembly());
-            }
-        }
-
-        public static string getTrad(string name)
-        {
-            return _rm.GetString(name);
-        }
-
-
-        public TrayIconForm() {
             Debug.WriteLine(Thread.CurrentThread.CurrentCulture.Name);
             LangHelper(Thread.CurrentThread.CurrentCulture.Name);
             InitializeComponent();
@@ -57,28 +45,24 @@ namespace WindowsLayoutSnapshot {
             m_snapshotTimer.Enabled = false;
 
             me = trayMenu;
-            if (WindowsLayoutSnapshot.Properties.Settings.Default.savedConfigurations != null && WindowsLayoutSnapshot.Properties.Settings.Default.savedConfigurations.Length > 0)
+            if (Properties.Settings.Default.savedConfigurations != null && Properties.Settings.Default.savedConfigurations.Length > 0)
             {
                 Debug.WriteLine("initial config");
-                var jsonOBJ = JsonConvert.DeserializeObject<string[]>(WindowsLayoutSnapshot.Properties.Settings.Default.savedConfigurations);
+                string[] jsonOBJ = JsonConvert.DeserializeObject<string[]>(Properties.Settings.Default.savedConfigurations);
 
-                foreach (var str in jsonOBJ)
+                foreach (string str in jsonOBJ)
                 {
-                    var item = JsonConvert.DeserializeObject<SnapshotBackJSON>(str);
+                    SnapshotBackJSON item = JsonConvert.DeserializeObject<SnapshotBackJSON>(str);
                     TakeSnapshot(true, item.name, item.processList);
                 }
             }
         }
 
-        private void snapshotTimer_Tick(object sender, EventArgs e) {
-            TakeSnapshot(false);
-        }
+        private void snapshotTimer_Tick(object sender, EventArgs e) => TakeSnapshot(false);
 
-        private void snapshotToolStripMenuItem_Click(object sender, EventArgs e) {
-            TakeSnapshot(true);
-        }
+	    private void snapshotToolStripMenuItem_Click(object sender, EventArgs e) => TakeSnapshot(true);
 
-        public static string ShowDialog(string text, string caption)
+	    public static string ShowDialog(string text, string caption)
         {
             Form prompt = new Form()
             {
@@ -97,31 +81,21 @@ namespace WindowsLayoutSnapshot {
             prompt.Controls.Add(textLabel);
             prompt.AcceptButton = confirmation;
 
-            void valueTextChanged(object sender, EventArgs e)
-            {
-                if(textBox.Text.Length >= 3)
-                {
-                    confirmation.Enabled = true;
-                }
-                else
-                {
-                    confirmation.Enabled = false;
-                }
-            }
+            void valueTextChanged(object sender, EventArgs e) => confirmation.Enabled = textBox.Text.Length >= 3;
 
-            textBox.TextChanged += valueTextChanged;
+	        textBox.TextChanged += valueTextChanged;
 
             return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : "";
         }
 
-        private void TakeSnapshot(bool userInitiated) {
-            var snapshotName = ShowDialog(getTrad("snapshotName"), getTrad("snapshotDescription"));
+        private void TakeSnapshot(bool userInitiated)
+        {
+            string snapshotName = ShowDialog(getTrad("snapshotName"), getTrad("snapshotDescription"));
 
-            if(snapshotName.Length > 0)
-            {
-                m_snapshots.Add(Snapshot.TakeSnapshot(userInitiated, snapshotName));
-                UpdateRestoreChoicesInMenu();
-            }
+	        if (snapshotName.Length <= 0)
+		        return;
+	        m_snapshots.Add(Snapshot.TakeSnapshot(userInitiated, snapshotName));
+	        UpdateRestoreChoicesInMenu();
         }
 
         private void TakeSnapshot(bool userInitiated, string snapshotName, Dictionary<int, WinInfo> processList)
@@ -130,7 +104,8 @@ namespace WindowsLayoutSnapshot {
             UpdateRestoreChoicesInMenu();
         }
 
-        private void clearSnapshotsToolStripMenuItem_Click(object sender, EventArgs e) {
+        private void clearSnapshotsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
             m_snapshots.Clear();
             UpdateRestoreChoicesInMenu();
         }
@@ -145,36 +120,37 @@ namespace WindowsLayoutSnapshot {
 
         private class RightImageToolStripMenuItem : ToolStripMenuItem {
             public RightImageToolStripMenuItem(string text)
-                : base(text) {
+                : base(text)
+            {
             }
             public float[] MonitorSizes { get; set; }
-            protected override void OnPaint(PaintEventArgs e) {
+            protected override void OnPaint(PaintEventArgs e)
+            {
                 base.OnPaint(e);
 
-                var icon = global::WindowsLayoutSnapshot.Properties.Resources.monitor;
-                var maxIconSizeScaling = ((float)(e.ClipRectangle.Height - 8)) / icon.Height;
-                var maxIconSize = new Size((int)Math.Floor(icon.Width * maxIconSizeScaling), (int)Math.Floor(icon.Height * maxIconSizeScaling));
+                Bitmap icon = Properties.Resources.monitor;
+                float maxIconSizeScaling = ((float)(e.ClipRectangle.Height - 8)) / icon.Height;
+                Size maxIconSize = new Size((int)Math.Floor(icon.Width * maxIconSizeScaling), (int)Math.Floor(icon.Height * maxIconSizeScaling));
                 int maxIconY = (int)Math.Round((e.ClipRectangle.Height - maxIconSize.Height) / 2f);
 
                 int nextRight = e.ClipRectangle.Width - 5;
-                for (int i = 0; i < MonitorSizes.Length; i++) {
-                    var thisIconSize = new Size((int)Math.Ceiling(maxIconSize.Width * MonitorSizes[i]),
-                        (int)Math.Ceiling(maxIconSize.Height * MonitorSizes[i]));
-                    var thisIconLocation = new Point(nextRight - thisIconSize.Width, 
-                        maxIconY + (maxIconSize.Height - thisIconSize.Height));
+                foreach (float t in MonitorSizes)
+                {
+	                Size thisIconSize = new Size((int)Math.Ceiling(maxIconSize.Width * t), (int)Math.Ceiling(maxIconSize.Height * t));
+	                Point thisIconLocation = new Point(nextRight - thisIconSize.Width, maxIconY + (maxIconSize.Height - thisIconSize.Height));
 
-                    // Draw with transparency
-                    var cm = new ColorMatrix();
-                    cm.Matrix33 = 0.7f; // opacity
-                    using (var ia = new ImageAttributes()) {
-                        ia.SetColorMatrix(cm);
+	                // Draw with transparency
+	                ColorMatrix cm = new ColorMatrix();
+	                cm.Matrix33 = 0.7f; // opacity
+	                using (ImageAttributes ia = new ImageAttributes())
+	                {
+		                ia.SetColorMatrix(cm);
 
-                        e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                        e.Graphics.DrawImage(icon, new Rectangle(thisIconLocation, thisIconSize), 0, 0, icon.Width,
-                            icon.Height, GraphicsUnit.Pixel, ia);
-                    }
+		                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+		                e.Graphics.DrawImage(icon, new Rectangle(thisIconLocation, thisIconSize), 0, 0, icon.Width, icon.Height, GraphicsUnit.Pixel, ia);
+	                }
 
-                    nextRight -= thisIconSize.Width + 4;
+	                nextRight -= thisIconSize.Width + 4;
                 }
             }
         }
@@ -183,125 +159,112 @@ namespace WindowsLayoutSnapshot {
             // construct the new list of menu items, then populate them
             // this function is idempotent
 
-            List<string> dataToSave = new List<string>();
+            List<string> dataToSave = m_snapshots.Select(snapshot => snapshot.getJSON()).ToList();
 
-            foreach (var snapshot in m_snapshots)
-            {
-                dataToSave.Add(snapshot.getJSON());
-            }
-
-            var stringToSave = JsonConvert.SerializeObject(dataToSave);
+	        string stringToSave = JsonConvert.SerializeObject(dataToSave);
 
             Debug.WriteLine(stringToSave);
 
-            WindowsLayoutSnapshot.Properties.Settings.Default.savedConfigurations = stringToSave;
-            WindowsLayoutSnapshot.Properties.Settings.Default.Save();
+            Properties.Settings.Default.savedConfigurations = stringToSave;
+            Properties.Settings.Default.Save();
 
-            var snapshotsOldestFirst = new List<Snapshot>(CondenseSnapshots(m_snapshots, 20));
-            var newMenuItems = new List<ToolStripItem>();
+            List<Snapshot> snapshotsOldestFirst = new List<Snapshot>(CondenseSnapshots(m_snapshots, 20));
+            List<ToolStripItem> newMenuItems = new List<ToolStripItem>
+            {
+	            quitToolStripMenuItem,
+	            aboutToolStripMenuItem,
+	            snapshotListEndLine
+            };
 
-            newMenuItems.Add(quitToolStripMenuItem);
-            newMenuItems.Add(aboutToolStripMenuItem);
-            newMenuItems.Add(snapshotListEndLine);
-
-            var maxNumMonitors = 0;
-            var maxNumMonitorPixels = 0L;
-            var showMonitorIcons = false;
-            foreach (var snapshot in snapshotsOldestFirst) {
-                if (maxNumMonitors != snapshot.NumMonitors && maxNumMonitors != 0) {
+	        int maxNumMonitors = 0;
+            long maxNumMonitorPixels = 0L;
+            bool showMonitorIcons = false;
+            foreach (Snapshot snapshot in snapshotsOldestFirst)
+            {
+                if (maxNumMonitors != snapshot.NumMonitors && maxNumMonitors != 0)
                     showMonitorIcons = true;
-                }
 
                 maxNumMonitors = Math.Max(maxNumMonitors, snapshot.NumMonitors);
-                foreach (var monitorPixels in snapshot.MonitorPixelCounts) {
-                    maxNumMonitorPixels = Math.Max(maxNumMonitorPixels, monitorPixels);
-                }
+	            maxNumMonitorPixels = snapshot.MonitorPixelCounts.Prepend(maxNumMonitorPixels).Max();
             }
 
-            foreach (var snapshot in snapshotsOldestFirst) {
-                var menuItem = new RightImageToolStripMenuItem(snapshot.GetDisplayString());
+            foreach (Snapshot snapshot in snapshotsOldestFirst) {
+                RightImageToolStripMenuItem menuItem = new RightImageToolStripMenuItem(snapshot.GetDisplayString());
                 menuItem.Tag = snapshot;
-                void onRestore(object sender, EventArgs e)
-                { // ignore extra params
-                  // first, restore the window rectangles and normal/maximized/minimized states
-                    MessageBox.Show(getTrad("warningDesc"), getTrad("warningTitle"));
-
-                    snapshot.Restore(sender, e);
-                    
-                    MessageBox.Show(getTrad("confirmDesc"), getTrad("warningTitle"));
-                }
-                void onMouseDown(object sender, MouseEventArgs e)
-                {
-                    if(e.Button == MouseButtons.Right)
-                    {
-                        //Remove this snapshot
-                        m_snapshots.Remove(snapshot);
-                        UpdateRestoreChoicesInMenu();
-                    }
-                }
+                void onRestore(object sender, EventArgs e) =>
+	                // ignore extra params
+	                // first, restore the window rectangles and normal/maximized/minimized states
+	                //                    MessageBox.Show(getTrad("warningDesc"), getTrad("warningTitle"));
+	                snapshot.Restore(sender, e);
+	            //                    MessageBox.Show(getTrad("confirmDesc"), getTrad("warningTitle"));
+	            void onMouseDown(object sender, MouseEventArgs e)
+	            {
+		            if (e.Button != MouseButtons.Right)
+			            return;
+		            //Remove this snapshot
+		            m_snapshots.Remove(snapshot);
+		            UpdateRestoreChoicesInMenu();
+	            }
                 menuItem.MouseDown += onMouseDown;
                 menuItem.Click += onRestore;
-                if (snapshot.UserInitiated) {
+                if (snapshot.UserInitiated)
                     menuItem.Font = new Font(menuItem.Font, FontStyle.Bold);
-                }
 
                 // monitor icons
-                var monitorSizes = new List<float>();
-                if (showMonitorIcons) {
-                    foreach (var monitorPixels in snapshot.MonitorPixelCounts) {
-                        monitorSizes.Add((float)Math.Sqrt(((float)monitorPixels) / maxNumMonitorPixels));
-                    }
-                }
-                menuItem.MonitorSizes = monitorSizes.ToArray();
+                List<float> monitorSizes = new List<float>();
+                if (showMonitorIcons)
+	                monitorSizes.AddRange(snapshot.MonitorPixelCounts.Select(monitorPixels => (float)Math.Sqrt(((float)monitorPixels) / maxNumMonitorPixels)));
+	            menuItem.MonitorSizes = monitorSizes.ToArray();
 
                 newMenuItems.Add(menuItem);
             }
 
             //newMenuItems.Add(justNowToolStripMenuItem);
 
-            this.snapshotListStartLine.Visible = m_snapshots.Count > 0;
+            snapshotListStartLine.Visible = m_snapshots.Count > 0;
             if (m_snapshots.Count > 0)
-            {
-
                 newMenuItems.Add(snapshotListStartLine);
-            }
             newMenuItems.Add(clearSnapshotsToolStripMenuItem);
             newMenuItems.Add(snapshotToolStripMenuItem);
 
             // if showing monitor icons: subtract 34 pixels from the right due to too much right padding
-            try {
-                var textPaddingField = typeof(ToolStripDropDownMenu).GetField("TextPadding", BindingFlags.NonPublic | BindingFlags.Static);
-                if (!m_originalTrayMenuTextPadding.HasValue) {
+            try
+            {
+                FieldInfo textPaddingField = typeof(ToolStripDropDownMenu).GetField("TextPadding", BindingFlags.NonPublic | BindingFlags.Static);
+                if (!m_originalTrayMenuTextPadding.HasValue)
                     m_originalTrayMenuTextPadding = (Padding)textPaddingField.GetValue(trayMenu);
-                }
                 textPaddingField.SetValue(trayMenu, new Padding(m_originalTrayMenuTextPadding.Value.Left, m_originalTrayMenuTextPadding.Value.Top,
                     m_originalTrayMenuTextPadding.Value.Right - (showMonitorIcons ? 34 : 0), m_originalTrayMenuTextPadding.Value.Bottom));
-            } catch {
+            }
+            catch
+            {
                 // something went wrong with using reflection
                 // there will be extra hanging off to the right but that's okay
             }
 
             // if showing monitor icons: make the menu item width 50 + 22 * maxNumMonitors pixels wider than without the icons, to make room 
             //   for the icons
-            try {
-                var arrowPaddingField = typeof(ToolStripDropDownMenu).GetField("ArrowPadding", BindingFlags.NonPublic | BindingFlags.Static);
+            try
+            {
+                FieldInfo arrowPaddingField = typeof(ToolStripDropDownMenu).GetField("ArrowPadding", BindingFlags.NonPublic | BindingFlags.Static);
                 if (!m_originalTrayMenuArrowPadding.HasValue) {
                     m_originalTrayMenuArrowPadding = (Padding)arrowPaddingField.GetValue(trayMenu);
                 }
                 arrowPaddingField.SetValue(trayMenu, new Padding(m_originalTrayMenuArrowPadding.Value.Left, m_originalTrayMenuArrowPadding.Value.Top,
                     m_originalTrayMenuArrowPadding.Value.Right + (showMonitorIcons ? 50 + 22 * maxNumMonitors : 0), 
                     m_originalTrayMenuArrowPadding.Value.Bottom));
-            } catch {
+            }
+            catch
+            {
                 // something went wrong with using reflection
-                if (showMonitorIcons) {
+                if (showMonitorIcons)
+                {
                     // add padding a hacky way
-                    var toAppend = "      ";
-                    for (int i = 0; i < maxNumMonitors; i++) {
+                    string toAppend = "      ";
+                    for (int i = 0; i < maxNumMonitors; i++)
                         toAppend += "           ";
-                    }
-                    foreach (var menuItem in newMenuItems) {
+                    foreach (ToolStripItem menuItem in newMenuItems)
                         menuItem.Text += toAppend;
-                    }
                 }
             }
 
@@ -309,10 +272,10 @@ namespace WindowsLayoutSnapshot {
             trayMenu.Items.AddRange(newMenuItems.ToArray());
         }
 
-        private List<Snapshot> CondenseSnapshots(List<Snapshot> snapshots, int maxNumSnapshots) {
-            if (maxNumSnapshots < 2) {
+        private List<Snapshot> CondenseSnapshots(List<Snapshot> snapshots, int maxNumSnapshots)
+        {
+            if (maxNumSnapshots < 2)
                 throw new Exception();
-            }
 
             // find maximally different snapshots
             // snapshots is ordered by time, ascending
@@ -371,11 +334,14 @@ namespace WindowsLayoutSnapshot {
             // I couldn't find a way to get this handle straight from the tray menu's properties;
             //   the ContextMenuStrip.Handle isn't the right one, so I'm using win32
             // More info RE the restore is below, where we do it
-            var currentForegroundWindow = GetForegroundWindow();
+            IntPtr currentForegroundWindow = GetForegroundWindow();
 
-            try {
+            try
+            {
                 ((Snapshot)(((ToolStripMenuItem)sender).Tag)).Restore(sender, e);
-            } finally {
+            }
+            finally
+            {
                 // A combination of SetForegroundWindow + SetWindowPos (via set_Visible) seems to be needed
                 // This was determined by trying a bunch of stuff
                 // This prevents the tray menu from closing, and makes sure it's still on top
@@ -384,37 +350,36 @@ namespace WindowsLayoutSnapshot {
             }
         }
 
-        private void quitToolStripMenuItem_Click(object sender, EventArgs e) {
-            Application.Exit();
-        }
+        private void quitToolStripMenuItem_Click(object sender, EventArgs e) => Application.Exit();
 
-        private void aboutToolStripMenuItem_Click(object sender, EventArgs e) {
-            System.Diagnostics.Process.Start("https://lestudio.qlaffont.com");
-        }
+	    private void aboutToolStripMenuItem_Click(object sender, EventArgs e) => Process.Start("https://lestudio.qlaffont.com");
 
-        private void trayIcon_MouseClick(object sender, MouseEventArgs e) {
+	    private void trayIcon_MouseClick(object sender, MouseEventArgs e)
+	    {
             //m_menuShownSnapshot = Snapshot.TakeSnapshot(false);
             //justNowToolStripMenuItem.Tag = m_menuShownSnapshot;
 
             // the context menu won't show by default on left clicks.  we're going to have to ask it to show up.
-            if (e.Button == MouseButtons.Left) {
-                try {
-                    // try using reflection to get to the private ShowContextMenu() function...which really 
-                    // should be public but is not.
-                    var showContextMenuMethod = trayIcon.GetType().GetMethod("ShowContextMenu",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    showContextMenuMethod.Invoke(trayIcon, null);
-                } catch (Exception) {
-                    // something went wrong with out hack -- fall back to a shittier approach
-                    trayMenu.Show(Cursor.Position);
-                }
+            if (e.Button == MouseButtons.Left)
+            {
+	            try
+	            {
+		            // try using reflection to get to the private ShowContextMenu() function...which really 
+		            // should be public but is not.
+		            MethodInfo showContextMenuMethod = trayIcon.GetType().GetMethod("ShowContextMenu",
+			            BindingFlags.NonPublic | BindingFlags.Instance);
+		            showContextMenuMethod.Invoke(trayIcon, null);
+	            }
+	            catch (Exception)
+	            {
+		            // something went wrong with out hack -- fall back to a shittier approach
+		            trayMenu.Show(Cursor.Position);
+	            }
             }
         }
 
-        private void TrayIconForm_VisibleChanged(object sender, EventArgs e) {
-            // Application.Run(Form) changes this form to be visible.  Change it back.
-            Visible = false;
-        }
-
+        private void TrayIconForm_VisibleChanged(object sender, EventArgs e) =>
+	        // Application.Run(Form) changes this form to be visible.  Change it back.
+	        Visible = false;
     }
 }

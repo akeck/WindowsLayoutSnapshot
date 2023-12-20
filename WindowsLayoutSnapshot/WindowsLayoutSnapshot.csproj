@@ -90,11 +90,6 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
     </Compile>
-    <Compile Include="Language\fr.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>fr.resx</DependentUpon>
-    </Compile>
     <Compile Include="Snapshot.cs" />
     <Compile Include="Native.cs" />
     <Compile Include="TrayIconForm.cs">
@@ -109,10 +104,6 @@
     <EmbeddedResource Include="Language\en.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>en.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Language\fr.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>fr.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
